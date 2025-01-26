@@ -135,6 +135,7 @@ public enum ParserBuilder<Input> {
   }
 
   @_disfavoredOverload
+  @inlinable
   public static func buildPartialBlock<P0: Parser, P1: Parser, each O1, O2>(
     accumulated: P0,
     next: P1
@@ -245,6 +246,7 @@ extension ParserBuilder where Input == Substring {
 
 extension ParserBuilder where Input == Substring.UTF8View {
   @_disfavoredOverload
+  @inlinable
   public static func buildExpression<P: Parser>(_ expression: P) -> P
   where P.Input == Substring.UTF8View {
     expression
@@ -253,15 +255,24 @@ extension ParserBuilder where Input == Substring.UTF8View {
 
 extension ParserBuilder.Take2 {
   public struct Map<NewOutput>: Parser where P0.Input == P1.Input {
+    @usableFromInline
     let upstream: ParserBuilder.Take2<P0, P1>
+    @usableFromInline
     let transform: (P0.Output, P1.Output) -> NewOutput
 
+    @inlinable
     public func parse(_ input: inout P0.Input) throws -> NewOutput {
       let (first, second) = try upstream.parse(&input)
       return transform(first, second)
     }
+    @usableFromInline
+    init(upstream: ParserBuilder.Take2<P0, P1>, transform: @escaping (P0.Output, P1.Output) -> NewOutput) {
+      self.upstream = upstream
+      self.transform = transform
+    }
   }
 
+  @inlinable
   public func map<NewOutput>(_ transform: @escaping (P0.Output, P1.Output) -> NewOutput) -> Map<
     NewOutput
   > {
@@ -271,6 +282,7 @@ extension ParserBuilder.Take2 {
 
 extension ParserBuilder.Take2.Map: ParserPrinter
 where P0: ParserPrinter, P1: ParserPrinter {
+  @inlinable
   public func print(_ output: NewOutput, into input: inout P0.Input) throws {
     guard canBitCast(NewOutput.self, to: (P0.Output, P1.Output).self)
     else {
@@ -287,7 +299,8 @@ where P0: ParserPrinter, P1: ParserPrinter {
   }
 }
 
-private func canBitCast<T, U>(_ type: T.Type, to otherType: U.Type) -> Bool {
+@usableFromInline
+internal func canBitCast<T, U>(_ type: T.Type, to otherType: U.Type) -> Bool {
   MemoryLayout<T>.size == MemoryLayout<U>.size
     && MemoryLayout<T>.alignment == MemoryLayout<U>.alignment
     && MemoryLayout<T>.stride == MemoryLayout<U>.stride
